@@ -33,7 +33,7 @@ export default function DashboardCharts({ transactions }: { transactions: Record
                 <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 tracking-tight">Despesas por Categoria</h3>
             </div>
 
-            <div className="h-72 w-full">
+            <div className="h-96 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
@@ -51,6 +51,7 @@ export default function DashboardCharts({ transactions }: { transactions: Record
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         <RechartsTooltip
                             formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                             contentStyle={{
@@ -65,7 +66,7 @@ export default function DashboardCharts({ transactions }: { transactions: Record
                         />
                         <Legend
                             verticalAlign="bottom"
-                            height={48}
+                            height={80}
                             iconType="circle"
                             formatter={(value) => <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400 capitalize ml-1">{value}</span>}
                         />

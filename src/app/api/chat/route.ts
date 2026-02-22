@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
 
-const SYSTEM_PROMPT = `
+import { createClient } from '@/utils/supabase/server'
+
+const getSystemPrompt = (categories: string[]) => `
 Você é o assistente financeiro do aplicativo "Financinha".
 Seu objetivo é ler as mensagens do usuário e extrair os dados financeiros no formato JSON estrito.
 Se a mensagem for muito vaga ou faltar informações cruciais (como valor), pergunte de volta para esclarecer.
+
+Categorias já existentes no sistema do usuário:
+[ ${categories.length > 0 ? categories.join(', ') : 'Nenhuma'} ]
+
+Regra de Categoria:
+SEMPRE prefira usar uma das "Categorias já existentes" listadas acima se o gasto se encaixar minimamente (ex: se a pessoa gastou com estacionamento e existe a categoria "Carro", use "Carro"). Crie uma nova categoria apenas se o gasto for completamente diferente das opções existentes.
 
 Formato retornado em JSON:
 {
@@ -13,7 +21,7 @@ Formato retornado em JSON:
     "descricao": "Nome do gasto ou ganho",
     "valor": 12.50, // sempre número positivo
     "direcao": "SAIDA" ou "ENTRADA" ou "INFO",
-    "categoria": "Nome da categoria (ex: restaurante, supermercado, saude, etc)",
+    "categoria": "Nome da categoria preferencialmente escolhida da lista existente",
     "meio_pagamento": "credito, debito, pix, dinheiro, etc"
   }
 }
@@ -31,8 +39,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'OpenRouter API Key not configured' }, { status: 500 })
         }
 
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        let existingCategories: string[] = []
+        if (user) {
+            const { data } = await supabase
+                .from('transactions')
+                .select('categoria')
+                .limit(200)
+
+            if (data) {
+                existingCategories = Array.from(
+                    new Set(data.map(t => String(t.categoria)).filter(c => c && c !== 'null' && c !== 'Outros' && c !== 'undefined'))
+                )
+            }
+        }
+
         const messages = [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: getSystemPrompt(existingCategories) },
             ...context,
             { role: 'user', content: message }
         ]
