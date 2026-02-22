@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import AIChatButton from '@/components/AIChatButton'
 import DashboardCharts from '@/components/DashboardCharts'
 import MonthlyInsights from '@/components/MonthlyInsights'
+import BudgetSummary from '@/components/BudgetSummary'
+import AccountsSummary from '@/components/AccountsSummary'
 import Header from '@/components/Header'
 import TransactionList from '@/components/TransactionList'
 
@@ -23,6 +25,21 @@ export default async function Dashboard() {
     .select('*')
     .order('data', { ascending: false })
 
+  // Fetch budgets
+  const { data: budgets } = await supabase
+    .from('budgets')
+    .select('*')
+
+  const { data: accounts } = await supabase
+    .from('accounts')
+    .select('*')
+    .order('created_at', { ascending: true })
+
+  const { data: creditCards } = await supabase
+    .from('credit_cards')
+    .select('*')
+    .order('created_at', { ascending: true })
+
   const allTx = transactions || []
 
   // Current month boundaries
@@ -37,17 +54,18 @@ export default async function Dashboard() {
     return d >= lastMonthStart && d <= lastMonthEnd
   })
 
-  // Calculate balance (all-time)
+  // Calculate balance (all-time) — only transactions that affect cash
   const balance = allTx.reduce((acc, t) => {
+    if (t.afeta_caixa === false) return acc
     if (t.direcao === 'ENTRADA') return acc + Number(t.valor)
     if (t.direcao === 'SAIDA') return acc - Number(t.valor)
     return acc
   }, 0)
 
-  // Monthly totals
-  const monthIncome = thisMonthTx.filter(t => t.direcao === 'ENTRADA').reduce((s, t) => s + Number(t.valor), 0)
-  const monthExpense = thisMonthTx.filter(t => t.direcao === 'SAIDA').reduce((s, t) => s + Number(t.valor), 0)
-  const lastMonthExpense = lastMonthTx.filter(t => t.direcao === 'SAIDA').reduce((s, t) => s + Number(t.valor), 0)
+  // Monthly totals — only cash-affecting transactions
+  const monthIncome = thisMonthTx.filter(t => t.direcao === 'ENTRADA' && t.afeta_caixa !== false).reduce((s, t) => s + Number(t.valor), 0)
+  const monthExpense = thisMonthTx.filter(t => t.direcao === 'SAIDA' && t.afeta_caixa !== false).reduce((s, t) => s + Number(t.valor), 0)
+  const lastMonthExpense = lastMonthTx.filter(t => t.direcao === 'SAIDA' && t.afeta_caixa !== false).reduce((s, t) => s + Number(t.valor), 0)
 
   // Spending pace
   const dayOfMonth = now.getDate()
@@ -116,7 +134,9 @@ export default async function Dashboard() {
       </div>
 
       <main className="flex-1 px-4 mt-8 max-w-5xl mx-auto w-full pb-24">
+        <AccountsSummary accounts={accounts || []} creditCards={creditCards || []} transactions={allTx} />
         <DashboardCharts transactions={allTx} />
+        <BudgetSummary budgets={budgets || []} transactions={allTx} />
         <MonthlyInsights transactions={allTx} />
         <TransactionList transactions={allTx} showAllLink={true} limit={15} />
       </main>
