@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createAccount, deleteAccount, transferBetweenAccounts } from '@/app/accounts/actions'
+import { createAccount, deleteAccount, updateAccount, transferBetweenAccounts } from '@/app/accounts/actions'
 
 const ACCOUNT_TYPES = [
     { value: 'corrente', label: 'Conta Corrente', emoji: '🏦', color: 'from-blue-600 to-indigo-600' },
     { value: 'poupanca', label: 'Poupança', emoji: '🐷', color: 'from-emerald-600 to-teal-600' },
     { value: 'investimento', label: 'Investimento', emoji: '📈', color: 'from-amber-600 to-orange-600' },
+    { value: 'dinheiro', label: 'Dinheiro', emoji: '💵', color: 'from-green-600 to-lime-600' },
 ]
 
 interface Account {
@@ -33,6 +34,14 @@ export default function AccountManager({ accounts, transactions }: AccountManage
     const [saving, setSaving] = useState(false)
     const [deletingId, setDeletingId] = useState<string | null>(null)
 
+    // Confirm delete state
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+    // Edit balance state
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editBalance, setEditBalance] = useState('')
+    const [updatingBalance, setUpdatingBalance] = useState(false)
+
     // Transfer state
     const [fromAccount, setFromAccount] = useState('')
     const [toAccount, setToAccount] = useState('')
@@ -51,13 +60,31 @@ export default function AccountManager({ accounts, transactions }: AccountManage
         setSaving(false)
     }
 
-    const handleDelete = async (id: string) => {
-        setDeletingId(id)
+    const handleConfirmDelete = async () => {
+        if (!confirmDeleteId) return
+        setDeletingId(confirmDeleteId)
         try {
-            await deleteAccount(id)
+            await deleteAccount(confirmDeleteId)
             router.refresh()
         } catch { alert('Erro ao remover conta') }
         setDeletingId(null)
+        setConfirmDeleteId(null)
+    }
+
+    const handleEditBalance = (account: Account) => {
+        setEditingId(account.id)
+        setEditBalance(String(account.saldo_inicial))
+    }
+
+    const handleSaveBalance = async () => {
+        if (!editingId) return
+        setUpdatingBalance(true)
+        try {
+            await updateAccount(editingId, { saldo_inicial: parseFloat(editBalance) || 0 })
+            setEditingId(null)
+            router.refresh()
+        } catch { alert('Erro ao atualizar saldo') }
+        setUpdatingBalance(false)
     }
 
     const handleTransfer = async () => {
@@ -103,15 +130,57 @@ export default function AccountManager({ accounts, transactions }: AccountManage
                                         <p className="text-lg font-bold mt-0.5">{account.nome}</p>
                                         <p className="text-3xl font-black mt-2">R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                                     </div>
-                                    <button
-                                        onClick={() => handleDelete(account.id)}
-                                        disabled={deletingId === account.id}
-                                        className="text-xs opacity-70 hover:opacity-100 p-1 transition-opacity"
-                                    >
-                                        {deletingId === account.id ? '...' : '✕'}
-                                    </button>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => handleEditBalance(account)}
+                                            className="text-xs opacity-70 hover:opacity-100 p-1.5 transition-opacity"
+                                            title="Editar saldo"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmDeleteId(account.id)}
+                                            disabled={deletingId === account.id}
+                                            className="text-xs opacity-70 hover:opacity-100 p-1.5 transition-opacity"
+                                        >
+                                            {deletingId === account.id ? '...' : '✕'}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* Inline edit balance */}
+                            {editingId === account.id && (
+                                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
+                                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Editar Saldo Inicial</p>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-sm">R$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={editBalance}
+                                                onChange={e => setEditBalance(e.target.value)}
+                                                className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl pl-10 pr-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleSaveBalance}
+                                            disabled={updatingBalance}
+                                            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                                        >
+                                            {updatingBalance ? '...' : '✓'}
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingId(null)}
+                                            className="px-3 py-2.5 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-sm font-bold transition-all"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )
                 })
@@ -120,6 +189,39 @@ export default function AccountManager({ accounts, transactions }: AccountManage
                     <p className="text-4xl mb-3">🏦</p>
                     <p className="font-bold text-zinc-800 dark:text-zinc-200">Nenhuma conta cadastrada</p>
                     <p className="text-sm text-zinc-500 mt-1">Adicione suas contas para acompanhar saldos separadamente</p>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {confirmDeleteId && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeleteId(null) }}
+                >
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 fade-in duration-200">
+                        <div className="text-center">
+                            <p className="text-4xl mb-3">⚠️</p>
+                            <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Tem certeza?</h3>
+                            <p className="text-sm text-zinc-500 mt-2">
+                                Essa conta e todos os dados associados serão removidos permanentemente.
+                            </p>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl font-bold text-sm transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                disabled={deletingId === confirmDeleteId}
+                                className="flex-1 py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-rose-500/25 disabled:opacity-50 transition-all"
+                            >
+                                {deletingId === confirmDeleteId ? 'Removendo...' : 'Sim, remover'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

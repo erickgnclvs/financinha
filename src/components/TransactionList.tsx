@@ -5,20 +5,28 @@ import Link from 'next/link'
 import TransactionForm from './TransactionForm'
 
 const CATEGORY_EMOJI: Record<string, string> = {
-    CARRO: '🚗',
+    ALIMENTACAO: '🍽️',
     MERCADO: '🛒',
-    'RESTAURANTE/IFOOD': '🍕',
-    RESTAURANTE: '🍕',
-    IFOOD: '🍕',
+    CARRO: '🚗',
+    MORADIA: '🏠',
     SAUDE: '💊',
+    ASSINATURAS: '📱',
+    PET: '🐶',
+    BEBE: '👶',
+    ROUPAS: '👕',
     LAZER: '🎮',
-    ALUGUEL: '🏠',
-    CONTAS: '📄',
-    BELEZA: '💅',
-    'ROUPAS/CALÇADO': '👟',
+    CARTAO: '💳',
+    PARCELAMENTOS: '📋',
+    SALARIO: '💰',
+    TAXAS: '🏛️',
+    ESTACIONAMENTO: '🅿️',
+    BELEZA: '💇',
     INVESTIMENTO: '📈',
-    'DESENVOLVIMENTO PESSOAL': '📚',
-    'DESPESAS EVENTUAIS': '🔧',
+    'ENTRADAS EXTRAS': '💸',
+    PRESENTES: '🎁',
+    'DESPESAS EVENTUAIS': '📌',
+    CASA: '🏡',
+    ALUGUEL: '🏠',
 }
 
 function getCategoryEmoji(cat: string | null | undefined): string {
@@ -47,7 +55,9 @@ interface TransactionListProps {
 export default function TransactionList({ transactions, showAllLink = false, limit }: TransactionListProps) {
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
 
-    const displayTx = limit ? transactions.slice(0, limit) : transactions
+    // Sort by created_at descending (most recent first)
+    const sorted = [...transactions].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    const displayTx = limit ? sorted.slice(0, limit) : sorted
 
     // Group by date
     const grouped = displayTx.reduce<Record<string, Transaction[]>>((acc, t) => {

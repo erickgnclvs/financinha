@@ -42,6 +42,7 @@ export default function CreditCardManager({ cards, transactions, accounts }: Cre
     const [vencimento, setVencimento] = useState('15')
     const [saving, setSaving] = useState(false)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
     // Bill detail modal
     const [detailCardId, setDetailCardId] = useState<string | null>(null)
@@ -79,13 +80,15 @@ export default function CreditCardManager({ cards, transactions, accounts }: Cre
         setSaving(false)
     }
 
-    const handleDelete = async (id: string) => {
-        setDeletingId(id)
+    const handleConfirmDelete = async () => {
+        if (!confirmDeleteId) return
+        setDeletingId(confirmDeleteId)
         try {
-            await deleteCreditCard(id)
+            await deleteCreditCard(confirmDeleteId)
             router.refresh()
         } catch { alert('Erro ao remover cartão') }
         setDeletingId(null)
+        setConfirmDeleteId(null)
     }
 
     const handlePay = async (card: CreditCard, bill: number) => {
@@ -129,7 +132,7 @@ export default function CreditCardManager({ cards, transactions, accounts }: Cre
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-purple-200 opacity-0 group-hover:opacity-100 transition-opacity">Detalhes →</span>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(card.id) }}
+                                                onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(card.id) }}
                                                 disabled={deletingId === card.id}
                                                 className="text-xs text-purple-200 hover:text-white p-1 transition-colors"
                                             >
@@ -315,6 +318,38 @@ export default function CreditCardManager({ cards, transactions, accounts }: Cre
                                     <p className="font-medium">Nenhuma transação nesta fatura</p>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Delete Confirmation Modal */}
+            {confirmDeleteId && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeleteId(null) }}
+                >
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 fade-in duration-200">
+                        <div className="text-center">
+                            <p className="text-4xl mb-3">⚠️</p>
+                            <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Tem certeza?</h3>
+                            <p className="text-sm text-zinc-500 mt-2">
+                                Esse cartão e todos os dados associados serão removidos permanentemente.
+                            </p>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl font-bold text-sm transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                disabled={deletingId === confirmDeleteId}
+                                className="flex-1 py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-rose-500/25 disabled:opacity-50 transition-all"
+                            >
+                                {deletingId === confirmDeleteId ? 'Removendo...' : 'Sim, remover'}
+                            </button>
                         </div>
                     </div>
                 </div>

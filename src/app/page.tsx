@@ -141,8 +141,20 @@ export default async function Dashboard() {
         <TransactionList transactions={allTx} showAllLink={true} limit={15} />
       </main>
 
-      {/* Floating Action Button for AI input */}
-      <AIChatButton />
+      {/* Floating Action Button */}
+      <AIChatButton
+        categories={Array.from(new Set(allTx.map(t => String(t.categoria)).filter(c => c && c !== 'null' && c !== 'undefined')))}
+        accounts={(accounts || []).map(a => ({ id: a.id, nome: a.nome, tipo: a.tipo }))}
+        creditCards={(creditCards || []).map(c => ({ id: c.id, nome: c.nome }))}
+        recentTransactions={allTx.slice(0, 8).filter(t => t.direcao === 'SAIDA').slice(0, 4).map(t => ({
+          descricao: String(t.descricao),
+          valor: Number(t.valor),
+          categoria: String(t.categoria),
+          meio_pagamento: String(t.meio_pagamento),
+          account_id: t.account_id || undefined,
+          credit_card_id: t.credit_card_id || undefined,
+        }))}
+      />
     </div>
   )
 }

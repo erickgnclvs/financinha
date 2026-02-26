@@ -63,6 +63,22 @@ export async function deleteAccount(id: string) {
     revalidatePath('/')
 }
 
+export async function updateAccount(id: string, data: { saldo_inicial?: number }) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not logged in')
+
+    const { error } = await supabase
+        .from('accounts')
+        .update(data)
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (error) throw new Error('Failed to update account')
+    revalidatePath('/accounts')
+    revalidatePath('/')
+}
+
 export async function transferBetweenAccounts(data: {
     from_account_id: string
     to_account_id: string
